@@ -1,18 +1,11 @@
-Linux kernel
-============
+Steps to download and use: 
 
-There are several guides for kernel developers and users. These guides can
-be rendered in a number of formats, like HTML and PDF. Please read
-Documentation/admin-guide/README.rst first.
-
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.  The formatted documentation can also be read online at:
-
-    https://www.kernel.org/doc/html/latest/
-
-There are various text files in the Documentation/ subdirectory,
-several of them using the Restructured Text markup notation.
-
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+clone https://github.com/ramyakandasamy7/linux.git
+install the dependencies:  sudo apt-get install git fakeroot build-essential ncurses-dev xz-utils libssl-dev bc flex libelf-dev bison
+CD into /linux
+cp /boot/config-`uname -r` .config
+make oldconfig
+Compile the kernel and build the kernel modules,:  make -j4 && make -j4 modules
+Install kernel modules, sudo make modules_install
+Finish the installation, sudo make install
+Sudo reboot and choose the new operating system at Grub menu
