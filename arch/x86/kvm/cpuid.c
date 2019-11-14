@@ -24,6 +24,11 @@
 #include "trace.h"
 #include "pmu.h"
 
+u64 counter=0;
+EXPORT_SYMBOL(counter);
+u64 exitTime=0;
+EXPORT_SYMBOL(exitTime);
+
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
 	int feature_bit = 0;
@@ -1046,7 +1051,17 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 
 	eax = kvm_rax_read(vcpu);
 	ecx = kvm_rcx_read(vcpu);
+	switch (eax) {
+	case 0x4FFFFFFF:
+	 eax = 5;
+	break;
+	case 0x4FFFFFFE:
+	ecx = (u32) (exitTime & 0xFFFFFFFFuLL);
+	ebx = (u32) (exitTime >> 32);
+	break;
+	default:
 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
+}
 	kvm_rax_write(vcpu, eax);
 	kvm_rbx_write(vcpu, ebx);
 	kvm_rcx_write(vcpu, ecx);
