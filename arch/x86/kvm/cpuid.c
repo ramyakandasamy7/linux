@@ -18,16 +18,28 @@
 #include <asm/processor.h>
 #include <asm/user.h>
 #include <asm/fpu/xstate.h>
+#include <asm/atomic.h>
 #include "cpuid.h"
 #include "lapic.h"
 #include "mmu.h"
 #include "trace.h"
 #include "pmu.h"
 
-u64 counter=0;
+//total exits
+atomic_t counter = ATOMIC_INIT(0);
 EXPORT_SYMBOL(counter);
-u64 exitTime=0;
+
+//total exits per exit reason
+atomic_t reasonCount[60]={ATOMIC_INIT(0)};
+EXPORT_SYMBOL(reasonCount);
+
+//total exit time
+atomic64_t exitTime=ATOMIC_INIT(0);
 EXPORT_SYMBOL(exitTime);
+
+//total time  per exit reason
+atomic64_t reasonTime[60]={ATOMIC_INIT(0)};
+EXPORT_SYMBOL(reasonTime);
 
 static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 {
@@ -1045,7 +1057,7 @@ EXPORT_SYMBOL_GPL(kvm_cpuid);
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
 	u32 eax, ebx, ecx, edx;
-
+	u64 temp;
 	if (cpuid_fault_enabled(vcpu) && !kvm_require_cpl(vcpu, 0))
 		return 1;
 
@@ -1053,12 +1065,20 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	ecx = kvm_rcx_read(vcpu);
 	switch (eax) {
 	case 0x4FFFFFFF:
-	 eax = 5;
+	eax = (u32) atomic_read(&counter);
 	break;
 	case 0x4FFFFFFE:
-	ecx = (u32) (exitTime & 0xFFFFFFFFuLL);
-	ebx = (u32) (exitTime >> 32);
+	ecx = (u32) ((u64)atomic64_read(&exitTime) & 0xFFFFFFFFuLL);
+	ebx = (u32) ((u64)atomic64_read(&exitTime) >> 32);
 	break;
+	case 0x4FFFFFFD:
+	eax = atomic_read(&reasonCount[ecx]);
+	break;
+	case 0x4FFFFFFC:
+	temp =  (u64) atomic64_read(&reasonTime[ecx]);
+	ecx =(u32) (temp & 0xFFFFFFFFuLL);
+	ebx = (u32) temp >> 32;
+	break;	
 	default:
 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 }

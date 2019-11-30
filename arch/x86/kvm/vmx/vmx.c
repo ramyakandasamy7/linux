@@ -44,6 +44,7 @@
 #include <asm/spec-ctrl.h>
 #include <asm/virtext.h>
 #include <asm/vmx.h>
+#include <asm/atomic.h>
 
 #include "capabilities.h"
 #include "cpuid.h"
@@ -64,8 +65,11 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
-extern u64 counter;
-extern u64 exitTime;
+extern atomic_t counter;
+extern atomic64_t  exitTime;
+extern atomic_t reasonCount[60];
+extern atomic64_t reasonTime[60];
+
 static const struct x86_cpu_id vmx_cpu_id[] = {
 	X86_FEATURE_MATCH(X86_FEATURE_VMX),
 	{}
@@ -5862,13 +5866,14 @@ void dump_vmcs(void)
  */
 static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 {
-	unsigned long long cycleStart;
-	unsigned long long end;
+	u64  cycleStart;
+	u64 end;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 exit_reason = vmx->exit_reason;
 	u32 vectoring_info = vmx->idt_vectoring_info;
 	trace_kvm_exit(exit_reason, vcpu, KVM_ISA_VMX);
-	counter = counter +1;
+	atomic_inc(&counter);
+	atomic_inc(&reasonCount[exit_reason]);
 
 	/*
 	 * Flush logged GPAs PML buffer, this will make dirty_bitmap more
@@ -5951,12 +5956,17 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if (exit_reason < kvm_vmx_max_exit_handlers
 	    && kvm_vmx_exit_handlers[exit_reason])
 		{
-	cycleStart =rdtsc();        
-int temp = kvm_vmx_exit_handlers[exit_reason](vcpu);
-	end = rdtsc();
-	exitTime+=(u64)(end-cycleStart);
-	return temp; 
-}
+		cycleStart =rdtsc();        
+		int temp = kvm_vmx_exit_handlers[exit_reason](vcpu);
+		end = rdtsc();
+		atomic64_add((u64)(end-cycleStart),&exitTime);
+		atomic64_add((u64)(end-cycleStart),&reasonTime[exit_reason]);
+		//atomic_add(&exitTime,(u64)(end-cycleStart);
+		//exitTime+=(u64)(end-cycleStart);
+		//atomic_add(&reasonTime[exit_reason),(u64)(end-cycleStart));
+		//reasonTime[exit_reason] += (u64)(end-cycleStart);
+		return temp; 
+	}
 
 	else {
 		vcpu_unimpl(vcpu, "vmx: unexpected exit reason 0x%x\n",
