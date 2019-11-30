@@ -1072,13 +1072,31 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	ebx = (u32) ((u64)atomic64_read(&exitTime) >> 32);
 	break;
 	case 0x4FFFFFFD:
+	if (ecx > 54) {
+	eax = 0;
+	ebx = 0;
+	ecx = 0;
+	edx = 0xFFFFFFFF;
+	break;
+	}
+	else {
 	eax = atomic_read(&reasonCount[ecx]);
 	break;
+	}
 	case 0x4FFFFFFC:
+	if (ecx > 54) {
+	eax = 0;
+	ebx =0;
+	ecx = 0;
+	edx = 0xFFFFFFFF;
+	break;
+	}
+	else {
 	temp =  (u64) atomic64_read(&reasonTime[ecx]);
 	ecx =(u32) (temp & 0xFFFFFFFFuLL);
-	ebx = (u32) temp >> 32;
-	break;	
+	ebx = (u32) (temp >> 32);
+	break;
+	}	
 	default:
 	kvm_cpuid(vcpu, &eax, &ebx, &ecx, &edx, true);
 }
